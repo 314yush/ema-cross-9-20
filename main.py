@@ -31,10 +31,18 @@ def main():
     # Strategy parameters from environment variables
     symbols_str = os.getenv("SYMBOLS", "ETH,SOL,BTC")
     symbols = [s.strip() for s in symbols_str.split(",")]
-    collateral_usd = float(os.getenv("COLLATERAL_USD", "25.0"))
-    sl_percent = float(os.getenv("STOP_LOSS_PERCENT", "30.0"))
-    tp_percent = float(os.getenv("TAKE_PROFIT_PERCENT", "100.0"))
-    timeframe = os.getenv("TIMEFRAME", "15m")
+    
+    # Parse numeric values, stripping quotes if present
+    def parse_float(env_var, default):
+        value = os.getenv(env_var, str(default))
+        # Remove quotes if present
+        value = value.strip('"\'')
+        return float(value)
+    
+    collateral_usd = parse_float("COLLATERAL_USD", 25.0)
+    sl_percent = parse_float("STOP_LOSS_PERCENT", 30.0)
+    tp_percent = parse_float("TAKE_PROFIT_PERCENT", 100.0)
+    timeframe = os.getenv("TIMEFRAME", "15m").strip('"\'')
     
     # Get maximum leverage for each asset
     print(f"📊 Getting maximum leverage for each asset...")
