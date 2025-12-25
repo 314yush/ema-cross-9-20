@@ -1,187 +1,193 @@
 """
 Main entry point for the trading bot.
-Supports running different strategies based on environment variables.
+EMA 9/20 Crossover Strategy - 15 Minute Timeframe
 """
 import os
 import sys
+import time
+from datetime import datetime
 from dotenv import load_dotenv
+from trading_bot import TradingBot
+from ema_strategy import EMA9_20Strategy
 from health_server import HealthServer
+from technical_indicators import detect_crossover
 
 # Load environment variables
 load_dotenv()
 
 def main():
     """Main entry point."""
-    # Get strategy from environment variable
-    strategy = os.getenv("STRATEGY", "sol_momentum").lower()
-    
-    print(f"🚀 Starting Trading Bot")
-    print(f"   Strategy: {strategy}")
-    print(f"   Environment: {'TESTNET' if os.getenv('USE_TESTNET', 'false').lower() == 'true' else 'MAINNET'}")
+    print("🚀 EMA 9/20 Strategy - 15 Minute Timeframe")
+    print("=" * 60)
+    print(f"Environment: {'TESTNET' if os.getenv('USE_TESTNET', 'false').lower() == 'true' else 'MAINNET'}")
     print()
     
-    if strategy == "sol_momentum" or strategy == "sol_ema_momentum":
-        # Run SOL EMA Momentum Strategy
-        from sol_ema_momentum_strategy import SOLEMAMomentumStrategy
-        from trading_bot import TradingBot
-        import time
-        from datetime import datetime
-        
-        print("📊 SOL EMA Momentum Crossover Strategy")
-        print("=" * 60)
-        
-        # Initialize bot
-        bot = TradingBot()
-        print(f"✅ Bot initialized")
-        print(f"Wallet: {bot.get_wallet_address()}")
-        print()
-        
-        # Strategy parameters from environment variables
-        symbol = os.getenv("SYMBOL", "SOL")
-        collateral_usd = float(os.getenv("COLLATERAL_USD", "1000.0"))
-        leverage = int(os.getenv("LEVERAGE", "10"))
-        timeframe = os.getenv("TIMEFRAME", "15m")
-        
-        # Risk management parameters
-        risk_per_trade_percent = float(os.getenv("RISK_PER_TRADE_PERCENT", "1.5"))
-        atr_stop_multiplier = float(os.getenv("ATR_STOP_MULTIPLIER", "0.5"))
-        risk_reward_ratio = float(os.getenv("RISK_REWARD_RATIO", "3.0"))
-        slope_threshold = float(os.getenv("SLOPE_THRESHOLD", "0.10"))
-        
-        print(f"📊 Strategy Configuration:")
-        print(f"   Symbol: {symbol}")
-        print(f"   Timeframe: {timeframe}")
-        print(f"   Collateral: ${collateral_usd:,.2f}")
-        print(f"   Leverage: {leverage}x")
-        print(f"   Risk per Trade: {risk_per_trade_percent}%")
-        print(f"   Risk/Reward: 1:{risk_reward_ratio}")
-        print()
-        
-        # Create strategy instance
-        strategy_instance = SOLEMAMomentumStrategy(
-            bot=bot,
-            symbol=symbol,
-            collateral_usd=collateral_usd,
-            leverage=leverage,
-            timeframe=timeframe,
-            risk_per_trade_percent=risk_per_trade_percent,
-            atr_stop_multiplier=atr_stop_multiplier,
-            risk_reward_ratio=risk_reward_ratio,
-            slope_threshold=slope_threshold,
-        )
-        
-        # Calculate timeframe in seconds
-        timeframe_seconds = {
-            "15m": 900,
-            "30m": 1800,
-            "1h": 3600,
-            "4h": 14400,
-            "1d": 86400,
-        }.get(timeframe, 900)
-        
-        print(f"🔄 Running in continuous mode - checking every {timeframe}")
-        print(f"   Press Ctrl+C to stop")
-        print()
-        
-        # Start health check server to prevent Railway from sleeping
-        health_port = int(os.getenv("HEALTH_CHECK_PORT", "8080"))
-        bot_status = {}
-        health_server = HealthServer(port=health_port, bot_status=bot_status)
-        health_server.start()
-        
-        check_count = 0
-        
-        try:
-            while True:
-                check_count += 1
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                print(f"\n{'='*60}")
-                print(f"⏰ Check #{check_count} - {current_time}")
-                print(f"{'='*60}")
-                
-                # Update health check status
-                health_server.update_status(
-                    checks=check_count,
-                    last_check=current_time,
-                    status="running"
-                )
-                
+    # Initialize bot
+    bot = TradingBot()
+    print(f"✅ Bot initialized")
+    print(f"Wallet: {bot.get_wallet_address()}")
+    print()
+    
+    # Strategy parameters from environment variables
+    symbols_str = os.getenv("SYMBOLS", "ETH,SOL,BTC")
+    symbols = [s.strip() for s in symbols_str.split(",")]
+    collateral_usd = float(os.getenv("COLLATERAL_USD", "25.0"))
+    sl_percent = float(os.getenv("STOP_LOSS_PERCENT", "30.0"))
+    tp_percent = float(os.getenv("TAKE_PROFIT_PERCENT", "100.0"))
+    timeframe = os.getenv("TIMEFRAME", "15m")
+    
+    # Get maximum leverage for each asset
+    print(f"📊 Getting maximum leverage for each asset...")
+    asset_leverages = {}
+    for symbol in symbols:
+        max_lev = bot.get_max_leverage(symbol)
+        if max_lev:
+            asset_leverages[symbol] = max_lev
+            print(f"   {symbol}: {max_lev}x")
+        else:
+            asset_leverages[symbol] = 20
+            print(f"   {symbol}: 20x (fallback)")
+    
+    print()
+    print(f"📊 Strategy Configuration:")
+    print(f"   Symbols: {', '.join(symbols)}")
+    print(f"   Timeframe: {timeframe}")
+    print(f"   Collateral per asset: ${collateral_usd}")
+    print(f"   Leverage: Using maximum per asset (see above)")
+    print(f"   Stop Loss: {sl_percent}%")
+    print(f"   Take Profit: {tp_percent}%")
+    print()
+    
+    # Start health check server
+    health_port = int(os.getenv("HEALTH_CHECK_PORT", os.getenv("PORT", "8080")))
+    bot_status = {}
+    health_server = HealthServer(port=health_port, bot_status=bot_status)
+    health_server.start()
+    
+    print(f"🔄 Running in continuous mode - checking every {timeframe}")
+    print(f"   Press Ctrl+C to stop")
+    print()
+    
+    check_count = 0
+    
+    try:
+        while True:
+            check_count += 1
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            print(f"\n{'='*60}")
+            print(f"⏰ Check #{check_count} - {current_time}")
+            print(f"{'='*60}")
+            
+            # Update health check status
+            health_server.update_status(
+                checks=check_count,
+                last_check=current_time,
+                status="running"
+            )
+            
+            # Check each symbol
+            for symbol in symbols:
                 try:
-                    # Check if we should execute
-                    if strategy_instance.should_execute():
-                        print(f"✅ Entry conditions met! Executing trade...")
+                    leverage = asset_leverages.get(symbol, 20)
+                    
+                    # Create EMA strategy
+                    strategy = EMA9_20Strategy(
+                        bot=bot,
+                        symbol=symbol,
+                        collateral_usd=collateral_usd,
+                        leverage=leverage,
+                        take_profit_percent=tp_percent,
+                        stop_loss_percent=sl_percent,
+                        timeframe=timeframe,
+                    )
+                    
+                    # Calculate EMAs
+                    if strategy.calculate_emas():
+                        signal_info = strategy.get_signal_info()
+                        trend = signal_info.get("trend", "N/A")
+                        ema9 = signal_info.get("ema9", 0)
+                        ema20 = signal_info.get("ema20", 0)
+                        current_price = signal_info.get("current_price", 0)
                         
-                        result = strategy_instance.execute()
+                        print(f"\n📊 {symbol}:")
+                        print(f"   Price: ${current_price:,.2f}")
+                        print(f"   EMA 9: ${ema9:,.2f}")
+                        print(f"   EMA 20: ${ema20:,.2f}")
+                        print(f"   Trend: {trend}")
+                        
+                        # Detect crossover
+                        if strategy.ema9 and strategy.ema20:
+                            crossover = detect_crossover(strategy.ema9, strategy.ema20)
+                            print(f"   Crossover Signal: {crossover if crossover else 'None'}")
+                        else:
+                            crossover = None
+                            print(f"   Crossover Signal: None (insufficient data)")
+                    else:
+                        print(f"\n📊 {symbol}:")
+                        print(f"   ⚠️  Could not calculate EMAs - insufficient data")
+                        crossover = None
+                    
+                    # Execute if crossover detected
+                    if crossover and strategy.should_execute():
+                        print(f"   ✅ CROSSOVER DETECTED! Executing trade...")
+                        
+                        result = strategy.execute()
                         
                         if result.get("success"):
-                            print(f"✅ Trade executed successfully!")
+                            print(f"   ✅ Trade executed successfully!")
                             
                             pos = result.get("position", {})
+                            order = result.get("order", {})
+                            
                             print(f"   Entry Price: ${pos.get('entry_price', 0):,.2f}")
                             print(f"   Position Size: {pos.get('position_size', 0):.6f} {symbol}")
                             
-                            rm = result.get("risk_management", {})
-                            if rm:
-                                print(f"   Stop Loss: ${rm.get('stop_loss_price', 0):,.2f}")
-                                print(f"   Take Profit: ${rm.get('take_profit_price', 0):,.2f}")
+                            if order.get("order_id"):
+                                print(f"   Order ID: {order.get('order_id')}")
+                            
+                            tp = result.get("take_profit", {})
+                            sl = result.get("stop_loss", {})
+                            
+                            if tp.get("success"):
+                                print(f"   ✅ TP Set: {tp.get('tp_percent')}%")
+                            if sl.get("success"):
+                                print(f"   ✅ SL Set: {sl.get('sl_percent')}%")
                         else:
                             error = result.get("error", "Unknown error")
                             print(f"   ❌ Execution failed: {error}")
                     else:
-                        signal_info = strategy_instance.get_signal_info()
-                        print(f"ℹ️  No entry signal")
-                        if signal_info.get("current_price"):
-                            print(f"   Current Price: ${signal_info.get('current_price'):,.2f}")
-                            print(f"   EMA Fast: ${signal_info.get('ema_fast', 0):,.2f}")
-                            print(f"   EMA Slow: ${signal_info.get('ema_slow', 0):,.2f}")
-                            print(f"   Slope: {signal_info.get('slope', 0):.4f}")
+                        print(f"   ℹ️  No crossover - waiting for signal")
                 
                 except Exception as e:
-                    print(f"❌ Error during check: {e}")
+                    print(f"   ❌ Error processing {symbol}: {e}")
                     import traceback
                     traceback.print_exc()
-                
-                # Wait for next check
-                print(f"\n⏳ Waiting {timeframe} until next check...")
-                time.sleep(timeframe_seconds)
-        
-        except KeyboardInterrupt:
-            print(f"\n\n🛑 Stopped by user")
-            print(f"   Total checks performed: {check_count}")
-            health_server.update_status(status="stopped")
-            health_server.stop()
-            print(f"   Bot stopped")
-        except Exception as e:
-            print(f"\n❌ Fatal error: {e}")
-            health_server.update_status(status="error")
-            health_server.stop()
-            import traceback
-            traceback.print_exc()
-            sys.exit(1)
+            
+            # Wait for next check
+            timeframe_seconds = {
+                "15m": 900,
+                "30m": 1800,
+                "1h": 3600,
+                "4h": 14400,
+                "1d": 86400,
+            }.get(timeframe, 900)
+            
+            print(f"\n⏳ Waiting {timeframe} until next check...")
+            time.sleep(timeframe_seconds)
     
-    elif strategy == "ema_9_20":
-        # Run EMA 9/20 Strategy
-        # Start health check server to prevent Railway from sleeping
-        health_port = int(os.getenv("HEALTH_CHECK_PORT", "8080"))
-        bot_status = {}
-        health_server = HealthServer(port=health_port, bot_status=bot_status)
-        health_server.start()
-        
-        try:
-            from run_15m_ema_strategy import run_15m_ema_strategy
-            run_15m_ema_strategy(continuous=True)
-        except KeyboardInterrupt:
-            health_server.update_status(status="stopped")
-            health_server.stop()
-        except Exception as e:
-            health_server.update_status(status="error")
-            health_server.stop()
-            raise
-    
-    else:
-        print(f"❌ Unknown strategy: {strategy}")
-        print(f"   Available strategies: sol_momentum, ema_9_20")
+    except KeyboardInterrupt:
+        print(f"\n\n🛑 Stopped by user")
+        print(f"   Total checks performed: {check_count}")
+        health_server.update_status(status="stopped")
+        health_server.stop()
+        print(f"   Bot stopped")
+    except Exception as e:
+        print(f"\n❌ Fatal error: {e}")
+        health_server.update_status(status="error")
+        health_server.stop()
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

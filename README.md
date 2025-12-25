@@ -1,6 +1,6 @@
 # Hyperliquid Trading Bot
 
-Simple trading bot for Hyperliquid DEX with EMA 9/20 crossover strategy.
+Trading bot for Hyperliquid DEX with EMA 9/20 crossover strategy.
 
 ## Features
 
@@ -9,6 +9,7 @@ Simple trading bot for Hyperliquid DEX with EMA 9/20 crossover strategy.
 - ✅ Multi-asset support (ETH, SOL, BTC)
 - ✅ Maximum leverage per asset (automatically detected)
 - ✅ Automatic TP/SL order placement
+- ✅ Health check server (prevents Fly.io from sleeping)
 - ✅ Test trade script
 
 ## Quick Start
@@ -23,19 +24,20 @@ pip install -r requirements.txt
 
 Create a `.env` file:
 
-```bash
+```env
 PRIVATE_KEY=your_ethereum_private_key_here
 USE_TESTNET=false
+SYMBOLS=ETH,SOL,BTC
+COLLATERAL_USD=25.0
+STOP_LOSS_PERCENT=30.0
+TAKE_PROFIT_PERCENT=100.0
+TIMEFRAME=15m
 ```
 
-### 3. Run EMA Strategy
+### 3. Run Bot
 
 ```bash
-# Continuous mode (checks every 15 minutes)
-python3 run_15m_ema_strategy.py
-
-# Single check (for testing)
-python3 run_15m_ema_strategy.py --once
+python3 main.py
 ```
 
 ### 4. Test Trade
@@ -47,73 +49,89 @@ python3 test_basic_btc_trade_simple.py
 
 ## Strategy Configuration
 
-The EMA strategy uses:
-- **Timeframe:** 15 minutes
-- **Assets:** ETH, SOL, BTC
-- **Collateral:** $25 per asset
-- **Leverage:** Maximum per asset (ETH: 25x, SOL: 20x, BTC: 40x)
-- **Stop Loss:** 30%
-- **Take Profit:** 100%
+The EMA 9/20 strategy:
+- **Timeframe:** 15 minutes (configurable)
+- **Assets:** ETH, SOL, BTC (configurable via SYMBOLS env var)
+- **Collateral:** $25 per asset (configurable)
+- **Leverage:** Maximum per asset (automatically detected)
+- **Stop Loss:** 30% (configurable)
+- **Take Profit:** 100% (configurable)
+
+**Signals:**
+- **BUY:** EMA 9 crosses above EMA 20
+- **SELL:** EMA 9 crosses below EMA 20
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PRIVATE_KEY` | Your Hyperliquid private key (required) | - |
+| `USE_TESTNET` | Use testnet (true/false) | false |
+| `SYMBOLS` | Comma-separated symbols to trade | ETH,SOL,BTC |
+| `COLLATERAL_USD` | Collateral per trade in USD | 25.0 |
+| `STOP_LOSS_PERCENT` | Stop loss percentage | 30.0 |
+| `TAKE_PROFIT_PERCENT` | Take profit percentage | 100.0 |
+| `TIMEFRAME` | Candle timeframe (15m, 30m, 1h, 4h, 1d) | 15m |
+| `HEALTH_CHECK_PORT` | Port for health check server | 8080 |
 
 ## Files
 
+- `main.py` - Main entry point (runs EMA 9/20 strategy)
 - `trading_bot.py` - Core bot functionality
 - `ema_strategy.py` - EMA 9/20 crossover strategy
-- `technical_indicators.py` - EMA calculation utilities
 - `strategy_template.py` - Strategy base class
-- `run_15m_ema_strategy.py` - EMA strategy runner (checks every 15 min)
-- `test_basic_btc_trade_simple.py` - Simple test trade script
+- `technical_indicators.py` - EMA calculation utilities
+- `health_server.py` - Health check server for Fly.io
+- `test_basic_btc_trade_simple.py` - Test trade script
 - `config.py` - Configuration
-- `utils.py` - Utilities
+- `Dockerfile` - Docker configuration for Fly.io
+- `fly.toml` - Fly.io deployment configuration
+
+## Cloud Deployment (Fly.io)
+
+### Deploy to Fly.io
+
+1. **Install Fly CLI:**
+   ```bash
+   curl -L https://fly.io/install.sh | sh
+   ```
+
+2. **Login:**
+   ```bash
+   fly auth login
+   ```
+
+3. **Deploy:**
+   ```bash
+   fly deploy
+   ```
+
+4. **Set Environment Variables:**
+   ```bash
+   fly secrets set PRIVATE_KEY=your_key USE_TESTNET=false SYMBOLS=ETH,SOL,BTC
+   ```
+
+5. **Monitor:**
+   ```bash
+   fly logs -a your-app-name
+   fly status -a your-app-name
+   ```
+
+### Health Check
+
+The bot includes a health check server to prevent Fly.io from sleeping:
+- Health endpoint: `https://your-app.fly.dev/health`
+- Ping endpoint: `https://your-app.fly.dev/ping`
 
 ## How It Works
 
-1. **EMA Strategy:** Checks for EMA 9/20 crossovers every 15 minutes
-   - BUY signal: EMA 9 crosses above EMA 20
-   - SELL signal: EMA 9 crosses below EMA 20
-
-2. **Test Trade:** Opens a simple BTC long position for testing
-
-## Cloud Deployment
-
-Deploy your bot to the cloud for 24/7 operation without running it locally.
-
-### Quick Deploy Options
-
-1. **Fly.io** (Recommended - Best Free Tier) ⭐
-   - See `ALTERNATIVES.md` for step-by-step guide
-   - Free tier available, never sleeps
-   - Easy Docker deployment
-
-2. **Koyeb** (Good Free Alternative)
-   - See `ALTERNATIVES.md` for details
-   - Free tier available, never sleeps
-
-3. **Render** (Free but Sleeps)
-   - See `DEPLOYMENT.md` for details
-   - Free tier available (needs keep-alive ping)
-
-4. **AWS EC2 / DigitalOcean**
-   - See `ALTERNATIVES.md` for detailed instructions
-   - AWS: Free tier for 12 months
-   - DigitalOcean: $5/month, reliable
-
-### Docker Support
-
-The bot includes Docker support for easy deployment:
-
-```bash
-# Build and run locally
-docker-compose up --build
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-See `DEPLOYMENT.md` for comprehensive cloud deployment guides.
+1. **Bot starts** and initializes connection to Hyperliquid
+2. **Every 15 minutes** (or configured timeframe), bot checks for EMA crossovers
+3. **When crossover detected:**
+   - Calculates position size based on collateral and leverage
+   - Executes market order
+   - Sets take-profit and stop-loss orders
+4. **Health check server** runs in background to keep bot awake
 
 ## Security
 
