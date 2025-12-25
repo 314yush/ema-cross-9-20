@@ -94,6 +94,8 @@ The EMA 9/20 strategy:
 1. **Install Fly CLI:**
    ```bash
    curl -L https://fly.io/install.sh | sh
+   export FLYCTL_INSTALL="$HOME/.fly"
+   export PATH="$FLYCTL_INSTALL/bin:$PATH"
    ```
 
 2. **Login:**
@@ -108,20 +110,34 @@ The EMA 9/20 strategy:
 
 4. **Set Environment Variables:**
    ```bash
-   fly secrets set PRIVATE_KEY=your_key USE_TESTNET=false SYMBOLS=ETH,SOL,BTC
+   fly secrets set \
+     PRIVATE_KEY="your_key" \
+     USE_TESTNET="false" \
+     SYMBOLS="ETH,SOL,BTC" \
+     COLLATERAL_USD="25.0" \
+     STOP_LOSS_PERCENT="30.0" \
+     TAKE_PROFIT_PERCENT="100.0" \
+     TIMEFRAME="15m"
    ```
 
 5. **Monitor:**
    ```bash
-   fly logs -a your-app-name
-   fly status -a your-app-name
+   fly logs -a ema-cross-9-20
+   fly status -a ema-cross-9-20
    ```
+
+### What Runs on Fly.io
+
+1. **EMA 9/20 Strategy** - Automatically runs via `main.py`, checks every 15 minutes
+2. **Test Trade Script** - Run manually: `fly ssh console -a ema-cross-9-20 -C "python3 test_basic_btc_trade_simple.py"`
 
 ### Health Check
 
-The bot includes a health check server to prevent Fly.io from sleeping:
-- Health endpoint: `https://your-app.fly.dev/health`
-- Ping endpoint: `https://your-app.fly.dev/ping`
+Health check server prevents Fly.io from sleeping:
+- Health: `https://ema-cross-9-20.fly.dev/health`
+- Ping: `https://ema-cross-9-20.fly.dev/ping`
+
+See `FLY_DEPLOY.md` for detailed deployment guide.
 
 ## How It Works
 
