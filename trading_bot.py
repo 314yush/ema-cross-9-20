@@ -203,6 +203,31 @@ class TradingBot:
             print(f"Error getting price for {symbol}: {e}")
             return None
     
+    def get_position_size(self, symbol: str) -> Optional[float]:
+        """
+        Get the current position size for a symbol.
+        
+        Args:
+            symbol: Trading symbol (e.g., "BTC")
+        
+        Returns:
+            Position size in base units, or None if no position
+        """
+        try:
+            user_state = self.info.user_state(self.wallet_address)
+            positions = user_state.get("assetPositions", [])
+            
+            for pos in positions:
+                position_data = pos.get("position", {})
+                if position_data.get("coin") == symbol:
+                    size = float(position_data.get("szi", 0))
+                    if size != 0:
+                        return abs(size)  # Return absolute value
+            return None
+        except Exception as e:
+            print(f"Error getting position size for {symbol}: {e}")
+            return None
+    
     def set_leverage(self, symbol: str, leverage: int, is_cross: bool = True) -> Dict[str, Any]:
         """
         Set leverage for a symbol.
@@ -353,8 +378,17 @@ class TradingBot:
                 reduce_only=True
             )
             
+            # Check response status
+            success = response.get("status") == "ok"
+            if not success:
+                # Log error details
+                statuses = response.get("response", {}).get("data", {}).get("statuses", [])
+                if statuses and "error" in statuses[0]:
+                    error_msg = statuses[0]["error"]
+                    print(f"   ⚠️  TP order error: {error_msg}")
+            
             return {
-                "success": response.get("status") == "ok",
+                "success": success,
                 "response": response,
                 "tp_price": tp_price,
             }
@@ -417,8 +451,17 @@ class TradingBot:
                 reduce_only=True
             )
             
+            # Check response status
+            success = response.get("status") == "ok"
+            if not success:
+                # Log error details
+                statuses = response.get("response", {}).get("data", {}).get("statuses", [])
+                if statuses and "error" in statuses[0]:
+                    error_msg = statuses[0]["error"]
+                    print(f"   ⚠️  SL order error: {error_msg}")
+            
             return {
-                "success": response.get("status") == "ok",
+                "success": success,
                 "response": response,
                 "sl_price": sl_price,
             }

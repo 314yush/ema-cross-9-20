@@ -354,3 +354,4 @@ class MultiAssetEMAStrategy:
         
         return self.strategies[symbol].execute()
 
+

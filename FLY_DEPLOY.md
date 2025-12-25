@@ -150,3 +150,4 @@ The bot includes a health check server to prevent Fly.io from sleeping:
 - Verify port 8080 is accessible
 - Restart if needed: `fly apps restart`
 
+

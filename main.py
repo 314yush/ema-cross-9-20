@@ -158,9 +158,18 @@ def main():
                             sl = result.get("stop_loss", {})
                             
                             if tp.get("success"):
-                                print(f"   ✅ TP Set: {tp.get('tp_percent')}%")
+                                tp_price = tp.get("tp_price", 0)
+                                print(f"   ✅ TP Set: {tp.get('tp_percent')}% (${tp_price:,.2f})")
+                            else:
+                                tp_error = tp.get("error", "Unknown error")
+                                print(f"   ⚠️  TP Failed: {tp_error}")
+                            
                             if sl.get("success"):
-                                print(f"   ✅ SL Set: {sl.get('sl_percent')}%")
+                                sl_price = sl.get("sl_price", 0)
+                                print(f"   ✅ SL Set: {sl.get('sl_percent')}% (${sl_price:,.2f})")
+                            else:
+                                sl_error = sl.get("error", "Unknown error")
+                                print(f"   ⚠️  SL Failed: {sl_error}")
                         else:
                             error = result.get("error", "Unknown error")
                             print(f"   ❌ Execution failed: {error}")

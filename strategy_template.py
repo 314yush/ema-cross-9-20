@@ -128,26 +128,83 @@ class AdvancedStrategy(ABC):
                     "strategy": self.name,
                 }
             
-            # Step 4: Set take profit
+            # Step 4: Wait a moment for position to be confirmed and get actual position size
+            import time
+            print(f"⏳ Waiting 2 seconds for position confirmation...")
+            time.sleep(2)
+            
+            # Get actual position size (may differ slightly due to slippage)
+            actual_position_size = self.bot.get_position_size(self.symbol)
+            if actual_position_size:
+                print(f"   Actual position size: {actual_position_size:.6f} {self.symbol}")
+                # Use actual position size for TP/SL
+                position_size_for_tpsl = actual_position_size
+            else:
+                print(f"   ⚠️  Could not get actual position size, using calculated size")
+                position_size_for_tpsl = self.position_size
+            
+            # Step 5: Set take profit (with retry)
             is_long = self.side == "B"
             print(f"🎯 Setting take profit at {self.take_profit_percent}%...")
-            tp_result = self.bot.set_take_profit(
-                self.symbol,
-                self.entry_price,
-                self.position_size,
-                self.take_profit_percent,
-                is_long=is_long
-            )
+            tp_result = None
+            for attempt in range(3):
+                if attempt > 0:
+                    print(f"   Retry {attempt}/2...")
+                    time.sleep(1)
+                tp_result = self.bot.set_take_profit(
+                    self.symbol,
+                    self.entry_price,
+                    position_size_for_tpsl,
+                    self.take_profit_percent,
+                    is_long=is_long
+                )
+                if tp_result.get("success"):
+                    break
             
-            # Step 5: Set stop loss
+            if not tp_result or not tp_result.get("success"):
+                error_msg = tp_result.get("error", "Unknown error") if tp_result else "No response"
+                response = tp_result.get("response", {}) if tp_result else {}
+                if isinstance(response, dict):
+                    statuses = response.get("response", {}).get("data", {}).get("statuses", [])
+                    if statuses and "error" in statuses[0]:
+                        error_msg = statuses[0]["error"]
+                print(f"   ❌ TP failed after retries: {error_msg}")
+                if response:
+                    print(f"   Response: {response}")
+            else:
+                tp_price = tp_result.get("tp_price", self.entry_price * (1 + self.take_profit_percent / 100) if is_long else self.entry_price * (1 - self.take_profit_percent / 100))
+                print(f"   ✅ TP set at ${tp_price:,.2f}")
+            
+            # Step 6: Set stop loss (with retry)
             print(f"🛡️  Setting stop loss at {self.stop_loss_percent}%...")
-            sl_result = self.bot.set_stop_loss(
-                self.symbol,
-                self.entry_price,
-                self.position_size,
-                self.stop_loss_percent,
-                is_long=is_long
-            )
+            sl_result = None
+            for attempt in range(3):
+                if attempt > 0:
+                    print(f"   Retry {attempt}/2...")
+                    time.sleep(1)
+                sl_result = self.bot.set_stop_loss(
+                    self.symbol,
+                    self.entry_price,
+                    position_size_for_tpsl,
+                    self.stop_loss_percent,
+                    is_long=is_long
+                )
+                if sl_result.get("success"):
+                    break
+            
+            if not sl_result or not sl_result.get("success"):
+                error_msg = sl_result.get("error", "Unknown error") if sl_result else "No response"
+                response = sl_result.get("response", {}) if sl_result else {}
+                if isinstance(response, dict):
+                    statuses = response.get("response", {}).get("data", {}).get("statuses", [])
+                    if statuses and "error" in statuses[0]:
+                        error_msg = statuses[0]["error"]
+                print(f"   ❌ SL failed after retries: {error_msg}")
+                if response:
+                    print(f"   Response: {response}")
+            else:
+                sl_price = sl_result.get("sl_price", self.entry_price * (1 - self.stop_loss_percent / 100) if is_long else self.entry_price * (1 + self.stop_loss_percent / 100))
+                print(f"   ✅ SL set at ${sl_price:,.2f}")
             
             # Calculate TP/SL prices for display (corrected for long/short)
             if is_long:
