@@ -80,18 +80,23 @@ Deploy your bot to the cloud for 24/7 operation without running it locally.
 
 ### Quick Deploy Options
 
-1. **Railway** (Recommended - Easiest)
-   - See `QUICKSTART.md` for step-by-step guide
-   - Free tier available
-   - Automatic deployments from GitHub
+1. **Fly.io** (Recommended - Best Free Tier) ⭐
+   - See `ALTERNATIVES.md` for step-by-step guide
+   - Free tier available, never sleeps
+   - Easy Docker deployment
 
-2. **Render**
+2. **Koyeb** (Good Free Alternative)
+   - See `ALTERNATIVES.md` for details
+   - Free tier available, never sleeps
+
+3. **Render** (Free but Sleeps)
    - See `DEPLOYMENT.md` for details
-   - Free tier available (may sleep)
+   - Free tier available (needs keep-alive ping)
 
-3. **AWS EC2 / DigitalOcean**
-   - See `DEPLOYMENT.md` for detailed instructions
-   - More control, requires server management
+4. **AWS EC2 / DigitalOcean**
+   - See `ALTERNATIVES.md` for detailed instructions
+   - AWS: Free tier for 12 months
+   - DigitalOcean: $5/month, reliable
 
 ### Docker Support
 

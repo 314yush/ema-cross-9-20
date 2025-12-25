@@ -1,0 +1,17 @@
+name: trading-bot
+type: web
+regions:
+  - iad
+docker:
+  dockerfile: Dockerfile
+env:
+  - name: PYTHONUNBUFFERED
+    value: "1"
+  - name: PYTHONDONTWRITEBYTECODE
+    value: "1"
+healthcheck:
+  path: /health
+  interval: 30
+  timeout: 5
+  initial_delay: 10
+

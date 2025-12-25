@@ -1,6 +1,56 @@
 # Quick Start Guide - Cloud Deployment
 
-## Fastest Way: Railway (Recommended)
+## 🆓 Free Options (Railway Free Plan Expired)
+
+Since Railway's free plan has expired, here are the best alternatives:
+
+### Option 1: Fly.io (Recommended - Best Free Tier) ⭐
+
+**Why Fly.io:**
+- ✅ Generous free tier (3 VMs)
+- ✅ Never sleeps (always-on)
+- ✅ Easy deployment
+- ✅ Built-in health checks
+
+**Quick Setup:**
+1. Sign up at [fly.io](https://fly.io) (free)
+2. Install Fly CLI: `curl -L https://fly.io/install.sh | sh`
+3. Login: `fly auth login`
+4. Deploy: `fly launch` (uses `fly.toml` automatically)
+5. Set secrets: `fly secrets set PRIVATE_KEY=your_key USE_TESTNET=false ...`
+6. Deploy: `fly deploy`
+
+See `ALTERNATIVES.md` for detailed guide.
+
+---
+
+### Option 2: Koyeb (Good Free Alternative)
+
+1. Sign up at [koyeb.com](https://www.koyeb.com)
+2. Create App → GitHub → Select repository
+3. Configure Docker deployment
+4. Add environment variables
+5. Deploy
+
+See `ALTERNATIVES.md` for details.
+
+---
+
+## 💰 Paid Options
+
+### Railway Pro ($5/month)
+- Original platform, now paid
+- Never sleeps
+- Easy deployment
+
+### DigitalOcean ($5/month)
+- Reliable and simple
+- Never sleeps
+- See `ALTERNATIVES.md` for setup
+
+---
+
+## Fastest Way: Railway (Paid)
 
 ### Step 1: Prepare Your Code
 1. Make sure all files are committed to Git
