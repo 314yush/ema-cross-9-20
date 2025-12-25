@@ -360,20 +360,25 @@ class TradingBot:
                 is_buy = True  # Buy to close short
             
             # Create trigger order for take profit
+            # triggerPx should be a number (float), not a string
             trigger_order_type = OrderType(
                 trigger=TriggerOrderType(
-                    triggerPx=str(tp_price),
+                    triggerPx=float(tp_price),
                     isMarket=True,
                     tpsl="tp"
                 )
             )
             
+            # Ensure position_size is a float
+            position_size_float = float(position_size)
+            
             # Place reduce-only order at TP price
+            # For trigger orders, pass the trigger price as limit_px (even for market orders)
             response = self.exchange.order(
                 symbol,
                 is_buy,
-                position_size,
-                tp_price,  # limit_px
+                position_size_float,
+                tp_price,  # limit_px - trigger price
                 trigger_order_type,
                 reduce_only=True
             )
@@ -433,20 +438,25 @@ class TradingBot:
                 is_buy = True  # Buy to close short
             
             # Create trigger order for stop loss
+            # triggerPx should be a number (float), not a string
             trigger_order_type = OrderType(
                 trigger=TriggerOrderType(
-                    triggerPx=str(sl_price),
+                    triggerPx=float(sl_price),
                     isMarket=True,
                     tpsl="sl"
                 )
             )
             
+            # Ensure position_size is a float
+            position_size_float = float(position_size)
+            
             # Place reduce-only order at SL price
+            # For trigger orders, pass the trigger price as limit_px (even for market orders)
             response = self.exchange.order(
                 symbol,
                 is_buy,
-                position_size,
-                sl_price,  # limit_px
+                position_size_float,
+                sl_price,  # limit_px - trigger price
                 trigger_order_type,
                 reduce_only=True
             )
